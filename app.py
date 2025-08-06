@@ -9,6 +9,9 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import timezone
 from dateutil.relativedelta import relativedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ─── Configure logging ───────────────────────────────────────────
 logging.basicConfig(
@@ -21,8 +24,7 @@ logger = logging.getLogger("table-and-detail")
 app = Flask(__name__)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL',
-    'postgresql://postgres:jAzQp9hwjimpOLAD6v38@project-z-db.crui6kuk09zu.us-east-2.rds.amazonaws.com:5432/postgres'
+    'DATABASE_URL'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)

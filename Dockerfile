@@ -7,6 +7,7 @@ WORKDIR /home/appuser
 
 # Copy and install Python dependencies (as root)
 COPY requirements.txt .
+COPY .env .
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir gunicorn
 
