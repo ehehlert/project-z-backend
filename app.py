@@ -1,15 +1,15 @@
-# app.py
 import os
 import uuid
 import logging
-import json
 from datetime import datetime
 from flask import Flask, request, jsonify, abort
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from datetime import timezone
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
+
+from models import (db, MappingIssueTask, MappingTaskSession, MappingQuoteTask,
+                    Item, SLD, Node, NodeClass, Edge, EdgeClass, IssueClass,
+                    Photo, Task, Form, FormSubmission, IRPhoto, IRSession,
+                    Issue, Quote)
 
 load_dotenv()
 
@@ -27,606 +27,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+db.init_app(app)
 
 logger.info("Starting Flask app on port 5000, connecting to DB %s", app.config['SQLALCHEMY_DATABASE_URI'])
-
-
-# ─── Model ─────────────────────────────────────────────────────
-
-class Item(db.Model):
-    __tablename__ = 'items'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    name = db.Column(db.String, nullable=False)
-    timestamp = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    sld = db.Column(JSONB, nullable=False, default=lambda: {"nodes": [], "edges": []})
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'name': self.name,
-            'timestamp': self.timestamp.isoformat(),
-            'sld': self.sld or {}
-        }
-
-class SLD(db.Model):
-    __tablename__ = 'slds'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    name = db.Column(db.String)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'name': self.name
-        }
-
-class Node(db.Model):
-    __tablename__ = 'nodes'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    type = db.Column(db.String)
-    label = db.Column(db.String)
-    sld_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    parent_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    x = db.Column(db.Float)
-    y = db.Column(db.Float)
-    width = db.Column(db.Float)
-    height = db.Column(db.Float)
-    is_deleted = db.Column(db.Boolean)
-    location = db.Column(db.String)
-    node_class = db.Column(
-        UUID(as_uuid=True)
-    )
-    core_attributes = db.Column(JSONB)
-    com = db.Column(db.Integer)
-    qr_code = db.Column(db.String)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'type': self.type,
-            'label': self.label,
-            'sld_id': str(self.sld_id),
-            'parent_id': str(self.parent_id) if self.parent_id else None,
-            'x': self.x,
-            'y': self.y,
-            'width': self.width,
-            'height': self.height,
-            'is_deleted': self.is_deleted,
-            'location': self.location,
-            'node_class': str(self.node_class) if self.node_class else None,
-            'core_attributes': self.core_attributes,
-            'com': self.com,
-            'qr_code': self.qr_code
-        }
-
-class NodeClass(db.Model):
-    __tablename__ = 'node_classes'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    name = db.Column(db.String)
-    style = db.Column(db.String)
-    definition = db.Column(JSONB)
-    box = db.Column(db.Boolean)
-    ocp = db.Column(db.Boolean)
-    width = db.Column(db.Float)
-    height = db.Column(db.Float)
-    color = db.Column(db.String)
-    needs_source = db.Column(db.Boolean)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'name': str(self.name),
-            'style': str(self.style),
-            'definition': self.definition,
-            'box': self.box,
-            'ocp': self.ocp,
-            'width': self.width,
-            'height': self.height,
-            'color': str(self.color),
-            'needs_source': self.needs_source
-        }
-
-class Edge(db.Model):
-    __tablename__ = 'edges'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    source = db.Column(UUID(as_uuid=True))
-    target = db.Column(UUID(as_uuid=True))
-    sld_id = db.Column(UUID(as_uuid=True))
-    is_deleted = db.Column(db.Boolean)
-    core_attributes = db.Column(JSONB)
-    edge_class = db.Column(UUID(as_uuid=True))
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'source': str(self.source),
-            'target': str(self.target),
-            'sld_id': str(self.sld_id),
-            'is_deleted': self.is_deleted,
-            'core_attributes': self.core_attributes,
-            'edge_class': self.edge_class
-        }
-
-class EdgeClass(db.Model):
-    __tablename__ = 'edge_classes'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    name = db.Column(db.String)
-    definition = db.Column(JSONB)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'name': str(self.name),
-            'definition': self.definition
-        }
-
-class Photo(db.Model):
-    __tablename__ = 'photos'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    entity_id = db.Column(UUID(as_uuid=True))
-    url = db.Column(db.String)
-    type = db.Column(db.String)
-    sld_id = db.Column(UUID(as_uuid=True))
-    upload_needed = db.Column(db.Boolean)
-    local_filepath = db.Column(db.String)
-    filename = db.Column(db.String)
-    is_deleted = db.Column(db.Boolean)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'entity_id': str(self.entity_id),
-            'url': self.url,
-            'type': self.type,
-            'sld_id': str(self.sld_id),
-            'upload_needed': self.upload_needed,
-            'local_filepath': self.local_filepath,
-            'filename': self.filename,
-            'is_deleted': self.is_deleted
-        }
-
-class Task(db.Model):
-    __tablename__ = 'tasks'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    title = db.Column(db.String)
-    task_description = db.Column(db.String)
-    completed = db.Column(db.Boolean)
-    node_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    form_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    sld_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    is_deleted = db.Column(db.Boolean)
-    submission = db.Column(JSONB)
-    submitted_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    due_date = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    task_type = db.Column(db.String)
-    recurring = db.Column(db.Boolean)
-    interval = db.Column(db.Integer)
-    procedure_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    shortcut_id = db.Column(
-        UUID(as_uuid=True)
-    )
-
-    def to_dict(self):
-        def fmt_dt(dt):
-            return (
-                dt.replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-                if dt else None
-            )
-
-        return {
-            'id': str(self.id),
-            'title': self.title,
-            'task_description': self.task_description,
-            'completed': self.completed,
-            'node_id': str(self.node_id) if self.node_id else None,
-            'form_id': str(self.form_id) if self.form_id else None,
-            'sld_id': str(self.sld_id) if self.sld_id else None,
-            'is_deleted': self.is_deleted,
-            'submission': json.dumps(self.submission),
-            'submitted_at': fmt_dt(self.submitted_at),
-            'created_at': fmt_dt(self.created_at),
-            'due_date': fmt_dt(self.due_date),
-            'task_type': self.task_type,
-            'recurring': self.recurring,
-            'interval': self.interval,
-            'procedure_id': str(self.procedure_id) if self.procedure_id else None,
-            'shortcut_id': str(self.shortcut_id) if self.shortcut_id else None,
-        }
-  
-class Form(db.Model):
-    __tablename__ = 'forms'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    schema = db.Column(JSONB)
-    title = db.Column(db.String)
-    is_global = db.Column(db.Boolean)
-    is_deleted = db.Column(db.Boolean)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'schema': json.dumps(self.schema),
-            'title': str(self.title),
-            'is_global': self.is_global,
-            'is_deleted': self.is_deleted
-        }
-
-class FormSubmission(db.Model):
-    __tablename__ = 'form_submissions'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    form_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    submission = db.Column(JSONB)
-    task_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    submitted_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'form_id': str(self.form_id),
-            'submission': json.dumps(self.submission),
-            'task_id': str(self.task_id),
-            'submitted_at': self.submitted_at.isoformat()
-        }
-
-class IRPhoto(db.Model):
-    __tablename__ = 'ir_photos'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    ir_session_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    visual_photo_key = db.Column(db.String)
-    ir_photo_key = db.Column(db.String)
-    date_created = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    node_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    sld_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    is_deleted = db.Column(db.Boolean)
-
-    def to_dict(self):
-        ts = (
-            self.date_created
-                .replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-        )
-        return {
-            'id': str(self.id),
-            'ir_session_id': str(self.ir_session_id) if self.ir_session_id else None,
-            'visual_photo_key': self.visual_photo_key,
-            'ir_photo_key': self.ir_photo_key,
-            'date_created': ts,
-            'node_id': str(self.node_id) if self.node_id else None,
-            'sld_id': str(self.sld_id) if self.sld_id else None,
-            'is_deleted': self.is_deleted if self.is_deleted is not None else False
-        }   
-
-class IRSession(db.Model):
-    __tablename__ = 'ir_sessions'
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    name = db.Column(db.String, nullable=False)
-    photo_type = db.Column(db.String, nullable=False)
-    active_visual_prefix = db.Column(db.String, nullable=False)
-    active_ir_prefix = db.Column(db.String, nullable=False)
-    date_created = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    date_closed = db.Column(db.DateTime)
-    sld_id = db.Column(UUID(as_uuid=True), nullable=False)
-    active = db.Column(db.Boolean, default=True)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'name': self.name,
-            'photo_type': self.photo_type,
-            'active_visual_prefix': self.active_visual_prefix,
-            'active_ir_prefix': self.active_ir_prefix,
-            'date_created': (
-                self.date_created
-                    .replace(tzinfo=timezone.utc)
-                    .strftime('%Y-%m-%dT%H:%M:%SZ')
-            ) if self.date_created else None,
-            'date_closed': (
-                self.date_closed
-                    .replace(tzinfo=timezone.utc)
-                    .strftime('%Y-%m-%dT%H:%M:%SZ')
-            ) if self.date_closed else None,
-            'sld_id': str(self.sld_id),
-            'active': self.active
-        }
-
-class Issue(db.Model):
-    __tablename__ = 'issues'
-    
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    title = db.Column(db.String)
-    description = db.Column(db.String)
-    created_date = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    node_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    issue_type = db.Column(db.String)
-    issue_subtype = db.Column(db.String)
-    is_deleted = db.Column(
-        db.Boolean,
-        default=False
-    )
-    session_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    sld_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    details = db.Column(db.Text)  # JSON field, using Text
-    status = db.Column(db.String)
-    proposed_resolution = db.Column(db.String)
-    modified_date = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-    def to_dict(self):
-        created_ts = (
-            self.created_date
-                .replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-            if self.created_date else None
-        )
-        modified_ts = (
-            self.modified_date
-                .replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-            if self.modified_date else None
-        )
-        
-        return {
-            'id': str(self.id),
-            'title': self.title,
-            'description': self.description,
-            'created_date': created_ts,
-            'node_id': str(self.node_id) if self.node_id else None,
-            'issue_type': self.issue_type,
-            'issue_subtype': self.issue_subtype,
-            'is_deleted': self.is_deleted if self.is_deleted is not None else False,
-            'session_id': str(self.session_id) if self.session_id else None,
-            'sld_id': str(self.sld_id) if self.sld_id else None,
-            'details': json.dumps(self.details),
-            'status': self.status,
-            'proposed_resolution': self.proposed_resolution,
-            'modified_date': modified_ts
-        }
-
-class Quote(db.Model):
-    __tablename__ = 'quotes'
-    
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
-    created_date = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
-    modified_date = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-    title = db.Column(db.String)
-    sow = db.Column(db.Text)  # JSON field, using Text
-    tnm = db.Column(db.Text)  # JSON field, using Text
-    sld_id = db.Column(
-        UUID(as_uuid=True)
-    )
-    description = db.Column(db.String)
-    status = db.Column(db.String)
-    is_deleted = db.Column(
-        db.Boolean,
-        default=False
-    )
-
-    def to_dict(self):
-        created_ts = (
-            self.created_date
-                .replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-            if self.created_date else None
-        )
-        modified_ts = (
-            self.modified_date
-                .replace(tzinfo=timezone.utc)
-                .strftime('%Y-%m-%dT%H:%M:%SZ')
-            if self.modified_date else None
-        )
-        
-        return {
-            'id': str(self.id),
-            'created_date': created_ts,
-            'modified_date': modified_ts,
-            'title': self.title,
-            'sow': json.dumps(self.sow),
-            'tnm': json.dumps(self.tnm),
-            'sld_id': str(self.sld_id) if self.sld_id else None,
-            'description': self.description,
-            'status': self.status,
-            'is_deleted': self.is_deleted if self.is_deleted is not None else False
-        }
-
-class MappingIssueTask(db.Model):
-    __tablename__ = 'mapping_issue_task'
-    
-    issue_id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True
-    )
-    task_id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True
-    )
-    is_deleted = db.Column(db.Boolean)
-    
-    def to_dict(self):
-        return {
-            'issue_id': str(self.issue_id),
-            'task_id': str(self.task_id),
-            'is_deleted': self.is_deleted
-        }
-
-class MappingTaskSession(db.Model):
-    __tablename__ = 'mapping_task_session'
-
-    # New standalone primary key
-    id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False
-    )
-
-    task_id = db.Column(
-        UUID(as_uuid=True),
-        nullable=False
-    )
-    session_id = db.Column(
-        UUID(as_uuid=True),
-        nullable=False
-    )
-
-    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
-
-    def to_dict(self):
-        return {
-            'id': str(self.id),
-            'task_id': str(self.task_id),
-            'session_id': str(self.session_id),
-            'is_deleted': self.is_deleted
-        }
-
-class MappingQuoteTask(db.Model):
-    __tablename__ = 'mapping_quote_task'
-    
-    quote_id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True
-    )
-    task_id = db.Column(
-        UUID(as_uuid=True),
-        primary_key=True
-    )
-    is_deleted = db.Column(db.Boolean)
-    
-    def to_dict(self):
-        return {
-            'quote_id': str(self.quote_id),
-            'task_id': str(self.task_id),
-            'is_deleted': self.is_deleted
-        }
 
 # ─── Health Check  ────────────────────────────────────────────
 
@@ -722,6 +125,14 @@ def update_quote(quote_id):
 
 # ─── Issues ────────────────────────────────────────────
 
+@app.route('/issue_classes', methods=['GET'])
+def get_issue_classes():
+    logger.info("READ ISSUE CLASSES")
+    issue_classes = IssueClass.query.all()
+    result = [issue_class.to_dict() for issue_class in issue_classes]
+    logger.info("READ succeeded: %s", result)
+    return jsonify(result), 200
+
 @app.route('/issue/create', methods=['POST'])
 def create_issue():
     """Create a new issue"""
@@ -730,9 +141,11 @@ def create_issue():
         
         # Create new issue instance
         issue = Issue(
+            id=data.get('id'),
             title=data.get('title'),
             description=data.get('description'),
             node_id=uuid.UUID(data['node_id']) if data.get('node_id') else None,
+            issue_class=data.get('issue_class'),
             issue_type=data.get('issue_type'),
             issue_subtype=data.get('issue_subtype'),
             is_deleted=data.get('is_deleted', False),
@@ -765,10 +178,7 @@ def update_issue(issue_id):
         # Find the issue
         issue = Issue.query.get(issue_id)
         if not issue:
-            return jsonify({
-                'success': False,
-                'error': 'Issue not found'
-            }), 404
+            return jsonify({'error': 'Issue not found'}), 404
         
         # Get update data
         data = request.get_json()
@@ -788,6 +198,8 @@ def update_issue(issue_id):
             issue.is_deleted = data['is_deleted']
         if 'session_id' in data:
             issue.session_id = uuid.UUID(data['session_id']) if data['session_id'] else None
+        if 'issue_class' in data:
+            issue.issue_class = uuid.UUID(data['issue_class']) if data['issue_class'] else None
         if 'sld_id' in data:
             issue.sld_id = uuid.UUID(data['sld_id']) if data['sld_id'] else None
         if 'details' in data:
@@ -802,17 +214,12 @@ def update_issue(issue_id):
         
         db.session.commit()
         
-        return jsonify({
-            'success': True,
-            'data': issue.to_dict()
-        }), 200
+        # Return the issue directly
+        return jsonify(issue.to_dict()), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 400
+        return jsonify({'error': str(e)}), 400
 
 # ─── IR Photos / Sessions ────────────────────────────────────────────
 @app.route('/ir_photos/<uuid:sld_id>')
@@ -841,6 +248,7 @@ def create_ir_photo():
             ir_session_id=uuid.UUID(data['ir_session_id']) if data.get('ir_session_id') else None,
             node_id=uuid.UUID(data['node_id']),
             sld_id=uuid.UUID(data['sld_id']),
+            issue_id=uuid.UUID(data['issue_id']) if data.get('issue_id') else None,
             visual_photo_key=data['visual_photo_key'],
             ir_photo_key=data['ir_photo_key'],
             date_created=datetime.fromisoformat(data['date_created']) if data.get('date_created') else datetime.utcnow(),
@@ -959,6 +367,11 @@ def update_ir_photo(photo_id):
             ir_photo.ir_session_id = uuid.UUID(data['ir_session_id']) if data['ir_session_id'] else None
         except ValueError:
             return jsonify({'error': 'Invalid ir_session_id format'}), 400
+    if 'issue_id' in data:
+        try:
+            ir_photo.issue_id = uuid.UUID(data['issue_id']) if data['issue_id'] else None
+        except ValueError:
+            return jsonify({'error': 'Invalid issue_id format'}), 400
     if 'visual_photo_key' in data:
         ir_photo.visual_photo_key = data['visual_photo_key']
     if 'ir_photo_key' in data:
