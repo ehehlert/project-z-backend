@@ -71,3 +71,20 @@ class MappingQuoteTask(db.Model):
             'task_id': str(self.task_id),
             'is_deleted': self.is_deleted
         }
+
+class MappingUserTask(db.Model):
+    __tablename__ = 'mapping_user_task'
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True)
+    user_id = db.Column(UUID(as_uuid=True), nullable=False)
+    task_id = db.Column(UUID(as_uuid=True), nullable=False)
+    mapping_type = db.Column(db.String, nullable=True)
+    is_deleted = db.Column(db.Boolean)
+    
+    def to_dict(self):
+        return {
+            'user_id': str(self.user_id),
+            'task_id': str(self.task_id),
+            'mapping_type': self.mapping_type,
+            'is_deleted': self.is_deleted
+        }

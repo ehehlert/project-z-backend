@@ -6,10 +6,12 @@ from flask import Flask, request, jsonify, abort
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
-from models import (db, MappingIssueTask, MappingTaskSession, MappingQuoteTask,
+from models import (db, MappingIssueTask, MappingTaskSession, MappingQuoteTask, MappingUserTask,
                     Item, SLD, Node, NodeClass, Edge, EdgeClass, IssueClass,
                     Photo, Task, Form, FormSubmission, IRPhoto, IRSession,
                     Issue, Quote)
+
+from routes import register_routes
 
 load_dotenv()
 
@@ -28,6 +30,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+register_routes(app)
 
 logger.info("Starting Flask app on port 5000, connecting to DB %s", app.config['SQLALCHEMY_DATABASE_URI'])
 
@@ -640,6 +643,10 @@ def get_sld(sld_id):
         (MappingQuoteTask.task_id.in_(task_ids))
     ).all() if quote_ids or task_ids else []
     
+    user_task_mappings = MappingUserTask.query.filter(
+        MappingUserTask.task_id.in_(task_ids)
+    ).all() if task_ids else []
+    
     result = {
         "id": sld.to_dict().get("id"),
         "name": sld.to_dict().get("name"),
@@ -654,7 +661,8 @@ def get_sld(sld_id):
         "mappings": {
             "issue_task": [mapping.to_dict() for mapping in issue_task_mappings],
             "task_session": [mapping.to_dict() for mapping in task_session_mappings],
-            "quote_task": [mapping.to_dict() for mapping in quote_task_mappings]
+            "quote_task": [mapping.to_dict() for mapping in quote_task_mappings],
+            "user_task": [mapping.to_dict() for mapping in user_task_mappings]
         }
     }
     logger.info("READ succeeded: %s", result)
@@ -776,6 +784,7 @@ def create_edge():
             target = data.get('target'),
             sld_id = data.get('sld_id'),
             is_deleted = data.get('is_deleted'),
+            edge_class = data.get('edge_class')
         )
 
         db.session.add(edge)
@@ -1176,6 +1185,76 @@ def update_quote_task_mapping(quote_id, task_id):
             'success': False,
             'error': str(e)
         }), 400
+
+@app.route('/mapping/user-task/create', methods=['POST'])
+def create_user_task_mapping():
+    data = request.json
+    
+    try:
+        mapping = MappingUserTask(
+            id=uuid.uuid4(),  # Generate a new UUID for the id
+            user_id=uuid.UUID(data['user_id']),
+            task_id=uuid.UUID(data['task_id']),
+            mapping_type=data.get('mapping_type', 'assignee'),
+            is_deleted=False
+        )
+        
+        db.session.add(mapping)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "id": str(mapping.id),
+            "message": "User-Task mapping created"
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to create user-task mapping: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+@app.route('/mapping/user-task/update/<uuid:user_id>/<uuid:task_id>', methods=['PUT'])
+def update_user_task_mapping(user_id, task_id):
+    """Update a user-task mapping (mainly for soft delete)"""
+    try:
+        mapping = MappingUserTask.query.filter_by(
+            user_id=user_id,
+            task_id=task_id
+        ).first()
+
+        if not mapping:
+            return jsonify({
+                'success': False,
+                'error': 'Mapping not found'
+            }), 404
+
+        # Get update data
+        data = request.get_json()
+
+        # Update fields if provided
+        if 'mapping_type' in data:
+            mapping.mapping_type = data['mapping_type']
+        if 'is_deleted' in data:
+            mapping.is_deleted = data['is_deleted']
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'data': mapping.to_dict()
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+
 
 # ─── Bootstrap & Run ───────────────────────────────────────────
 if __name__ == '__main__':

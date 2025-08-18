@@ -18,6 +18,7 @@ USER appuser
 # Copy application code (owned by appuser)
 COPY --chown=appuser:appuser app.py .
 COPY --chown=appuser:appuser models ./models
+COPY --chown=appuser:appuser routes ./routes
 
 EXPOSE 5000
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]

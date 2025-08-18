@@ -1,5 +1,5 @@
 from .db import db
-from .Mappings import MappingIssueTask, MappingTaskSession, MappingQuoteTask
+from .Mappings import MappingIssueTask, MappingTaskSession, MappingQuoteTask, MappingUserTask
 from .Item import Item
 from .SLD import SLD
 from .Node import Node
@@ -15,12 +15,14 @@ from .IRPhoto import IRPhoto
 from .IRSession import IRSession
 from .Issue import Issue
 from .Quote import Quote
+from .Device import Device
 
 __all__ = [
     "db",
     "MappingIssueTask",
     "MappingTaskSession",
     "MappingQuoteTask",
+    "MappingUserTask",
     "Item",
     "SLD",
     "Node",
@@ -35,5 +37,6 @@ __all__ = [
     "IRPhoto",
     "IRSession",
     "Issue",
-    "Quote"
+    "Quote",
+    "Device"
 ]
