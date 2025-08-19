@@ -6,3 +6,6 @@ python-dotenv
 boto3
 ezdxf
 matplotlib
+PyJWT>=2.8.0
+python-jose[cryptography]>=3.3.0
+Flask-CORS>=4.0.0

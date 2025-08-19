@@ -1,15 +1,17 @@
 import os
 import uuid
 import logging
+import boto3
 from datetime import datetime
 from flask import Flask, request, jsonify, abort
+from flask_cors import CORS
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
 from models import (db, MappingIssueTask, MappingTaskSession, MappingQuoteTask, MappingUserTask,
                     Item, SLD, Node, NodeClass, Edge, EdgeClass, IssueClass,
                     Photo, Task, Form, FormSubmission, IRPhoto, IRSession,
-                    Issue, Quote)
+                    Issue, Quote, Company, User)
 
 from routes import register_routes
 
@@ -24,6 +26,9 @@ logger = logging.getLogger("table-and-detail")
 
 # ─── Flask & DB setup ─────────────────────────────────────────
 app = Flask(__name__)
+
+# Configure CORS for cross-origin requests
+CORS(app, origins="*", allow_headers=["Content-Type", "Authorization"])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
     'DATABASE_URL'
@@ -1253,6 +1258,49 @@ def update_user_task_mapping(user_id, task_id):
             'success': False,
             'error': str(e)
         }), 400
+
+# ─── Utility Routes ───────────────────────────────────────────
+@app.route('/get_presigned_url', methods=['POST'])
+def get_presigned_url():
+    """Generate a presigned PUT URL for S3 upload.
+    
+    Expects JSON payload with:
+    - bucket: S3 bucket name
+    - key: Object key/path in the bucket
+    
+    Returns presigned URL valid for 1 hour.
+    """
+    data = request.get_json() or {}
+    logger.info("GET_PRESIGNED_URL with payload: %s", data)
+    
+    bucket = data.get('bucket')
+    key = data.get('key')
+    
+    if not bucket or not key:
+        return jsonify({"error": "Both 'bucket' and 'key' are required"}), 400
+    
+    try:
+        # Create S3 client - will use EC2 instance role credentials
+        s3_client = boto3.client('s3', region_name='us-east-2')
+        
+        # Generate presigned PUT URL
+        presigned_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={'Bucket': bucket, 'Key': key},
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+        
+        logger.info("Generated presigned URL for bucket=%s, key=%s", bucket, key)
+        return jsonify({
+            "url": presigned_url,
+            "bucket": bucket,
+            "key": key,
+            "expires_in": 3600
+        }), 200
+        
+    except Exception as e:
+        logger.exception("Error generating presigned URL")
+        return jsonify({"error": str(e)}), 500
 
 
 

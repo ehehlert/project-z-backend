@@ -1,0 +1,9 @@
+{
+  "challenge": "NEW_PASSWORD_REQUIRED",
+  "challenge_parameters": {
+    "USER_ID_FOR_SRP": "916be5f0-00a1-7079-0310-e888fdc35924",
+    "requiredAttributes": "[\"userAttributes.zoneinfo\",\"userAttributes.family_name\",\"userAttributes.given_name\"]",
+    "userAttributes": "{\"zoneinfo\":\"\",\"email_verified\":\"true\",\"given_name\":\"\",\"family_name\":\"\",\"email\":\"ehehlert1994@gmail.com\"}"
+  },
+  "session": "AYABeANlV4cUWNwic_6YsxPnpCoAHQABAAdTZXJ2aWNlABBDb2duaXRvVXNlclBvb2xzAAEAB2F3cy1rbXMAS2Fybjphd3M6a21zOnVzLWVhc3QtMjo0MTc1Njc5MDM0Njk6a2V5LzVjZDI0ZDRjLWVjNWItNGU4Ny05MGI2LTVkODdkOTZmY2RkMgC4AQIBAHhTLbUG2wPynKC5mzTBKxl69-lmDw7ReneEoHoGfx649wFrVL6J4hPLodlmt_BmrsunAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQM9XuIHJyQCh1duHqQAgEQgDvlFlGClfICQuPZuAUyn3yQLArKCfdJX3ZvwUNC43kxk8fIAqKNA_Jn43Z-mxP3Xs9Hgx3Th4rbXsMIzgIAAAAADAAAEAAAAAAAAAAAAAAAAAB4O48g7DhRnan2vZQWmV3j_____wAAAAEAAAAAAAAAAAAAAAEAAAESGLD-rDoqkRad-GdS-dmyOUrir-iGjmHyD848UOt9R5dVVlmrYH9d13z1B07HkUPorGAba8hCTFNRC5QXK40Tkkqqj_o_OhrgXoeoPjJnl1gz5JMgK_GK92nOwZPJyAvcu3kh4yytqBjTfzY3AtzE12RbOvoIQAqCDSuPL0UiTm6d8pltrEllCziziQSlztN6pMxrClWhTYTif0XC9-SsEENVaJmVZHDgEYK9-HsQYU9HU6-aoek0GKXNt-h1gPQeoznrZzfKh3AL5zdtThoR7gcdgU0Kk66j9_4SyYJcb16HdPUv1MT65y2vxPPpYR4totSTWCbYUKc_ici9OfmfUQKDd--5DpozMxCBj4DcPP7SSgiK1L7Q7UtD0IPMAPJMsPk"
+}

@@ -16,6 +16,8 @@ from .IRSession import IRSession
 from .Issue import Issue
 from .Quote import Quote
 from .Device import Device
+from .Company import Company
+from .User import User
 
 __all__ = [
     "db",
@@ -38,5 +40,7 @@ __all__ = [
     "IRSession",
     "Issue",
     "Quote",
-    "Device"
+    "Device",
+    "Company",
+    "User"
 ]

@@ -6,9 +6,8 @@ from .db import db
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(
-        UUID(as_uuid=True),
+        db.String,
         primary_key=True,
-        default=uuid.uuid4,
         nullable=False
     )
     username = db.Column(
@@ -45,7 +44,7 @@ class User(db.Model):
             return dt.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ') if dt else None
         
         return {
-            'id': str(self.id),
+            'id': self.id,
             'username': self.username,
             'company_id': str(self.company_id),
             'created_at': format_dt(self.created_at),
