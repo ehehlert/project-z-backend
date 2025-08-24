@@ -8,6 +8,7 @@ from flask_cors import CORS
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 
+from sqlalchemy import or_
 from models import (db, MappingIssueTask, MappingTaskSession, MappingQuoteTask, MappingUserTask,
                     Item, SLD, Node, NodeClass, Edge, EdgeClass, IssueClass,
                     Photo, Task, Form, FormSubmission, IRPhoto, IRSession,
@@ -680,6 +681,31 @@ def get_node_classes():
     node_classes = NodeClass.query.all()
     result = [node_class.to_dict() for node_class in node_classes]
     logger.info("READ succeeded: %s", result)
+    return jsonify(result), 200
+
+# Read node classes by user ID with company filtering
+@app.route('/node_classes/user/<string:user_id>', methods=['GET'])
+def get_node_classes_by_user(user_id):
+    logger.info("READ NODE CLASSES for user: %s", user_id)
+    
+    # Get the user to find their company_id
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({
+            'success': False,
+            'error': 'User not found'
+        }), 404
+    
+    # Get node classes that are either global or belong to the user's company
+    node_classes = NodeClass.query.filter(
+        or_(
+            NodeClass.is_global == True,
+            NodeClass.company_id == user.company_id
+        )
+    ).all()
+    
+    result = [node_class.to_dict() for node_class in node_classes]
+    logger.info("READ succeeded: Found %d node classes for user %s", len(result), user_id)
     return jsonify(result), 200
 
 # Read one

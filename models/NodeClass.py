@@ -18,6 +18,9 @@ class NodeClass(db.Model):
     height = db.Column(db.Float)
     color = db.Column(db.String)
     needs_source = db.Column(db.Boolean)
+    is_deleted = db.Column(db.Boolean)
+    company_id = db.Column(UUID(as_uuid=True))
+    is_global = db.Column('global', db.Boolean)
 
     def to_dict(self):
         return {
@@ -30,5 +33,8 @@ class NodeClass(db.Model):
             'width': self.width,
             'height': self.height,
             'color': str(self.color),
-            'needs_source': self.needs_source
+            'needs_source': self.needs_source,
+            'is_deleted': self.is_deleted,
+            'company_id': self.company_id,
+            'is_global': self.is_global
         }
